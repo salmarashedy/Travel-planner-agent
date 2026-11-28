@@ -5,7 +5,7 @@ from datetime import date
 from typing import Literal
 
 from agents.merge import MergeResult
-from schemas.trip import Extraction, TripSpec
+from schemas.trip import REQUIRED_FIELDS, Extraction, TripSpec
 
 Action = Literal["confirmed", "redirect", "clarify", "ask_change", "ask", "confirm"]
 
@@ -23,8 +23,12 @@ class Decision:
 
 
 def open_needs(spec: TripSpec, rejected: dict[str, str], unclear: list[str]) -> list[str]:
-    """What we still need, most urgent first: refused values, vague ones, then missing ones."""
-    vague = [name for name in unclear if getattr(spec, name, None) is None]
+    """What we still need, most urgent first: refused values, vague ones, then missing ones.
+
+    Only required fields count as vague. The model often marks optional ones
+    like region as unclear, and we shouldn't hold up the chat asking for them.
+    """
+    vague = [n for n in unclear if n in REQUIRED_FIELDS and getattr(spec, n) is None]
     return list(dict.fromkeys([*rejected, *vague, *spec.missing_required()]))
 
 
@@ -34,6 +38,7 @@ def decide(
     extraction: Extraction,
     awaiting: bool,
     today: date,
+    already_confirmed: bool = False,
 ) -> Decision:
     spec = merged.spec
     rejected = dict(merged.rejected)
@@ -52,7 +57,11 @@ def decide(
 
     # The confirmation gate runs before anything else: a plain "yes" to the
     # summary we just showed, with nothing changed and nothing left to fix.
-    if awaiting and kind == "yes" and not needs and not merged.conflicts and not changed:
+    settled = not needs and not merged.conflicts and not changed
+    if awaiting and kind == "yes" and settled:
+        return result("confirmed")
+    # Already confirmed and nothing new: stay confirmed instead of re-asking.
+    if already_confirmed and settled and kind in ("yes", "trip_info", "greeting"):
         return result("confirmed")
 
     if kind in ("off_topic", "non_english"):
@@ -60,7 +69,8 @@ def decide(
         return result("redirect", fields=needs[:1], awaiting_confirmation=awaiting)
     if merged.conflicts:
         return result("clarify", conflicts=list(merged.conflicts))
-    if awaiting and kind == "no":
+    # A "no" that also fixed something goes on to show the new summary.
+    if (awaiting or already_confirmed) and kind == "no" and not changed:
         return result("ask_change")
     if needs:
         return result("ask", fields=needs[:MAX_QUESTIONS])

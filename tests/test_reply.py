@@ -3,7 +3,15 @@ from datetime import date
 import pytest
 
 from agents.decide import Decision
-from agents.reply import CONFIRMED, QUESTIONS, build_reply, change_note, question, summary
+from agents.reply import (
+    CONFIRMED,
+    QUESTIONS,
+    build_reply,
+    change_note,
+    greeting_line,
+    question,
+    summary,
+)
 from schemas.trip import FieldName, TripSpec
 
 FULL = TripSpec(
@@ -19,9 +27,10 @@ FULL = TripSpec(
 def reply(action, spec=None, *, before=None, message_type="trip_info", counts=None, **kwargs):
     unclear = kwargs.pop("unclear", [])
     side_answer = kwargs.pop("side_answer", None)
+    user_message = kwargs.pop("user_message", "")
     decision = Decision(action=action, spec=spec or TripSpec(), **kwargs)
     return build_reply(decision, before or decision.spec, message_type, counts or {},
-                       unclear=unclear, side_answer=side_answer)
+                       unclear=unclear, side_answer=side_answer, user_message=user_message)
 
 
 # ---------- questions ----------
@@ -157,7 +166,7 @@ def test_parts_come_in_order():
     before = TripSpec(country="Italy", budget_amount=1500)
     after = before.model_copy(update={"budget_amount": 2000})
     r = reply(
-        "ask", after, before=before, message_type="greeting",
+        "ask", after, before=before, message_type="greeting", user_message="hi! make it 2000",
         fields=["hotel_stars"], rejected={"hotel_stars": "Hotel stars go from 1 to 5."},
         side_answer="Rome is busy in summer.",
     )
@@ -165,6 +174,22 @@ def test_parts_come_in_order():
         "Hello! Rome is busy in summer. Updated: budget amount 1,500 -> 2,000. "
         f"Hotel stars go from 1 to 5. {QUESTIONS['hotel_stars']}"
     )
+
+
+@pytest.mark.parametrize(
+    ("message", "line"),
+    [("hi", "Hello!"), ("Hello there", "Hello!"), ("good morning", "Hello!"),
+     ("thanks!", "You're welcome!"), ("thank you", "You're welcome!"),
+     ("okay", None), ("nth", None), ("this is great", None)],
+)
+def test_greeting_line(message, line):
+    assert greeting_line(message) == line
+
+
+def test_okay_does_not_get_a_hello():
+    # Real chat: "okay" got "Hello! Here is what I have..."
+    r = reply("confirm", FULL, message_type="greeting", user_message="okay")
+    assert not r.text.startswith("Hello")
 
 
 @pytest.mark.parametrize("action", ["ask", "confirm", "clarify", "ask_change", "redirect"])

@@ -150,6 +150,55 @@ def interest_mentioned(interest: str, msg: Message) -> bool:
     return bool(msg.words & INTEREST_WORDS[interest])
 
 
+YES_REPLIES = {
+    "yes", "y", "yeah", "yep", "yup", "ya", "ok", "okay", "k", "sure", "correct", "right",
+    "exactly", "perfect", "confirm", "great", "yes please", "looks good", "sounds good",
+    "all good", "that's right", "thats right", "go ahead", "that is right",
+}
+NO_REPLIES = {"no", "n", "nope", "nah", "wrong", "incorrect", "not right", "that's wrong"}
+NOTHING_REPLIES = {"nothing", "nth", "none", "nvm", "never mind", "no changes", "nothing to change"}
+NO_STARTS = {"no", "nope", "nah", "wrong"}
+
+
+def correct_message_type(model_type: str, message: str) -> str:
+    """Fix the model's label for short, common replies we can read for sure."""
+    text = " ".join(re.findall(r"[\w']+", message.lower()))
+    if text in YES_REPLIES:
+        return "yes"
+    if text in NOTHING_REPLIES:
+        return "trip_info"  # nothing to change: carry on as normal
+    if text in NO_REPLIES:
+        return "no"
+    if text.split(" ")[0] in NO_STARTS and model_type in ("trip_info", "greeting", "yes"):
+        return "no"
+    # Slang and typos ("nth", "idk") get labelled non-English. Our pilot is
+    # English-only, so plain ASCII text is treated as English.
+    if model_type == "non_english" and message.isascii():
+        return "off_topic"
+    return model_type
+
+
+MONTHS = {"january", "february", "march", "april", "may", "june", "july", "august",
+          "september", "october", "november", "december"}
+UNCLEAR_HINTS = {
+    "budget_amount": {"cheap", "budget", "money", "expensive", "afford", "affordable", "luxury",
+                      "price", "cost", "spend", "pricey", "dollars", "pounds", "euros", "$", "£"},
+    "budget_currency": {"$", "£", "dollar", "dollars", "pound", "pounds", "currency", "bucks"},
+    "start_date": MONTHS | {m[:3] for m in MONTHS} | {
+        "summer", "winter", "spring", "autumn", "fall", "soon", "next", "holiday", "holidays",
+        "christmas", "easter", "weekend", "month", "year", "decamber"},
+    "num_days": {"few", "couple", "several", "week", "weeks", "while", "days", "nights"},
+    "party_size": PEOPLE_WORDS | {"few", "some", "us", "we", "group", "couple"},
+    "country": {"somewhere", "anywhere", "europe", "asia", "africa", "america", "abroad"},
+}
+
+
+def unclear_mentioned(field: str, msg: Message) -> bool:
+    """Only treat a field as vague if the user said something about it."""
+    hints = UNCLEAR_HINTS.get(field)
+    return hints is None or bool(msg.words & hints)
+
+
 def question_mentioned(question: str, msg: Message) -> bool:
     if not msg.is_question():
         return False

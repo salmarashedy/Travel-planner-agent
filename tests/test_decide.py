@@ -51,6 +51,12 @@ def test_vague_value_comes_before_other_missing_fields():
     assert d.fields == ["budget_amount", "start_date"]
 
 
+def test_unclear_optional_field_is_not_asked():
+    # Real chat: the model marked region unclear and the bot asked for a city.
+    d = run(TripSpec(country="United Kingdom", num_days=5), said(unclear=["start_date", "region"]))
+    assert d.fields == ["start_date", "budget_amount"]
+
+
 def test_unclear_flag_on_a_known_field_is_ignored():
     d = run(FULL, said(unclear=["budget_currency"]))
     assert d.action == "confirm"
@@ -106,8 +112,43 @@ def test_no_to_the_summary_asks_what_to_change():
     assert d.awaiting_confirmation is False
 
 
+def test_no_that_also_fixes_something_shows_the_new_summary():
+    new = FULL.model_copy(update={"party_size": 5})
+    d = run(new, said("no"), prev=FULL, awaiting=True)
+    assert d.action == "confirm"
+    assert d.awaiting_confirmation is True
+
+
 def test_no_without_a_summary_just_continues():
     assert run(TripSpec(country="Italy"), said("no")).action == "ask"
+
+
+# ---------- after confirming ----------
+
+def confirmed_run(spec, extraction, prev=None):
+    merged = MergeResult(spec=spec)
+    return decide(merged, prev if prev is not None else spec, extraction, False, TODAY,
+                  already_confirmed=True)
+
+
+def test_yes_after_confirming_stays_confirmed():
+    # Real chat: a second "yes" showed the summary again.
+    assert confirmed_run(FULL, said("yes")).action == "confirmed"
+
+
+def test_change_after_confirming_reopens_the_trip():
+    new = FULL.model_copy(update={"party_size": 3})
+    d = confirmed_run(new, said(), prev=FULL)
+    assert d.action == "confirm"
+    assert d.awaiting_confirmation is True
+
+
+def test_no_after_confirming_asks_what_to_change():
+    assert confirmed_run(FULL, said("no")).action == "ask_change"
+
+
+def test_off_topic_after_confirming_is_redirected():
+    assert confirmed_run(FULL, said("off_topic")).action == "redirect"
 
 
 # ---------- off topic ----------

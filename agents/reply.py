@@ -1,6 +1,7 @@
 """Turn a decision into the text the user sees. Fixed templates only, so the bot
 can't invent facts or prices."""
 
+import re
 from dataclasses import dataclass
 from datetime import date
 
@@ -77,6 +78,16 @@ def question(name: str, times_asked: int, vague: bool) -> str:
     return QUESTIONS.get(name, f"Could you tell me your preferred {label(name)}?")
 
 
+def greeting_line(message: str) -> str | None:
+    """Answer a hello or a thanks; say nothing for "okay" and the like."""
+    words = set(re.findall(r"[a-z]+", message.lower()))
+    if words & {"hi", "hello", "hey", "hiya"} or re.search(r"\bgood (morning|afternoon|evening)\b", message.lower()):
+        return "Hello!"
+    if words & {"thanks", "thank", "thx", "ty"}:
+        return "You're welcome!"
+    return None
+
+
 def change_note(before: TripSpec, after: TripSpec) -> str | None:
     changes = []
     for name in QUESTIONS:
@@ -119,6 +130,7 @@ def build_reply(
     ask_counts: dict[str, int],
     unclear: list[str] = (),
     side_answer: str | None = None,
+    user_message: str = "",
 ) -> Reply:
     if decision.action == "confirmed":
         return Reply(CONFIRMED, {})
@@ -129,8 +141,9 @@ def build_reply(
     questions = [question(name, counts[name], name in unclear) for name in asked]
 
     parts = []
-    if message_type == "greeting":
-        parts.append("Hello!")
+    greeting = greeting_line(user_message)
+    if greeting:
+        parts.append(greeting)
     if side_answer:
         parts.append(side_answer)
     note = change_note(before, decision.spec)
