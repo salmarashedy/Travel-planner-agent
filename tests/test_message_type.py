@@ -48,5 +48,10 @@ def test_real_non_english_stays():
     assert correct_message_type("non_english", "Quiero ir a España") == "non_english"
 
 
+def test_non_english_without_accents_stays():
+    # Found by the golden set: plain-letter French was being called off-topic.
+    assert correct_message_type("non_english", "Bonjour, je veux aller en Espagne") == "non_english"
+
+
 def test_longer_messages_keep_the_models_label():
     assert correct_message_type("trip_info", "okay so 5 days in Rome") == "trip_info"

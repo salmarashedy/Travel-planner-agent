@@ -66,12 +66,19 @@ The prompt is in `agents/prompts/` so it can be improved without touching code.
 python -m pytest
 ```
 
-Tests use a fake model, so they need no Ollama, GPU, or network.
+Tests use a fake model, so they need no Ollama, GPU, or network. They also run
+on GitHub Actions on every push.
 
-To try the real model:
+Real-model checks are kept apart and skipped by default. With Ollama running:
 
 ```bash
+python -m pytest -m llm                                  # golden-set checks with the real model
 python -m scripts.chat                                   # chat in the terminal
 python -m scripts.try_extract "10 days in Greece"        # see what the model finds
-python -m scripts.compare_models qwen3:4b --merge        # score it on the test messages
+python -m scripts.compare_models qwen3:4b --merge        # score it on the dev messages
+python -m scripts.compare_models qwen3:4b --merge --cases heldout --log
+mlflow ui --backend-store-uri sqlite:///mlflow.db        # compare saved runs
 ```
+
+The golden messages are in `tests/golden/`: `extract_dev.json` is for working
+on the prompt, `extract_heldout.json` is only for measuring, never for tuning.

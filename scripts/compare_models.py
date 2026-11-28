@@ -1,8 +1,10 @@
-"""Score extraction on the dev cases for one or more models.
+"""Score extraction on the golden cases for one or more models.
 
-    python -m scripts.compare_models qwen3:4b llama3.2:3b
+    python -m scripts.compare_models qwen3:4b gemma3:4b
     python -m scripts.compare_models qwen3:4b --show-errors
-    python -m scripts.compare_models qwen3:4b --merge     # after the step 5 checks
+    python -m scripts.compare_models qwen3:4b --merge          # after the step 5 checks
+    python -m scripts.compare_models qwen3:4b --cases heldout  # the final exam set
+    python -m scripts.compare_models qwen3:4b --merge --log    # save the run to MLflow
 """
 
 import argparse
@@ -15,18 +17,25 @@ from datetime import date
 from pathlib import Path
 from typing import get_args
 
-from agents.extract import extract
+from agents.extract import PROMPT_VERSION, extract
+from agents.grounding import tidy_extraction
 from agents.merge import merge
 from core.config import get_settings
 from schemas.country import normalize_country
 from schemas.trip import Extraction, FieldName, TripSpec
 from services.llm_client import OllamaClient
 
-CASES_FILE = Path(__file__).resolve().parent.parent / "tests" / "golden" / "extract_dev.json"
+GOLDEN_DIR = Path(__file__).resolve().parent.parent / "tests" / "golden"
+
+
+def load_cases(name: str) -> tuple[list[dict], date]:
+    data = json.loads((GOLDEN_DIR / f"extract_{name}.json").read_text("utf-8"))
+    return data["cases"], date.fromisoformat(data["today"])
 
 
 @dataclass
 class Score:
+    cases: int = 0
     type_ok: int = 0
     found: int = 0
     expected: int = 0
@@ -34,6 +43,19 @@ class Score:
     failed: int = 0
     seconds: list[float] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
+
+    @property
+    def found_rate(self) -> float:
+        return self.found / self.expected if self.expected else 1.0
+
+    @property
+    def type_rate(self) -> float:
+        return self.type_ok / self.cases if self.cases else 1.0
+
+    @property
+    def p95_seconds(self) -> float:
+        ordered = sorted(self.seconds)
+        return ordered[min(len(ordered) - 1, round(0.95 * (len(ordered) - 1)))]
 
 
 def same(name: str, got, want) -> bool:
@@ -119,7 +141,7 @@ def score_case(case: dict, result: Extraction | None, score: Score) -> None:
 async def run_model(model: str, cases: list[dict], today: date, with_merge: bool) -> Score:
     settings = get_settings().model_copy(update={"ollama_model": model})
     llm = OllamaClient(settings)
-    score = Score()
+    score = Score(cases=len(cases))
 
     # Load the model first so the first case isn't timed with the load.
     await extract(llm, "hi", TripSpec(), today)
@@ -131,7 +153,7 @@ async def run_model(model: str, cases: list[dict], today: date, with_merge: bool
         )
         score.seconds.append(time.perf_counter() - start)
         if with_merge and result is not None:
-            result = after_merge(result, case["message"], today)
+            result = after_merge(tidy_extraction(result, case["message"]), case["message"], today)
             case = {**case, "updates": {k: v for k, v in case.get("updates", {}).items() if k != "end_date"}}
         score_case(case, result, score)
     return score
@@ -159,33 +181,61 @@ def after_merge(result: Extraction, message: str, today: date) -> Extraction:
     )
 
 
+def log_run(model: str, score: Score, cases_name: str, with_merge: bool) -> None:
+    import mlflow  # slow to import, so only when asked
+
+    mlflow.set_tracking_uri(get_settings().mlflow_tracking_uri)
+    mlflow.set_experiment("feature1-extraction")
+    with mlflow.start_run(run_name=f"{model} {cases_name}{' +merge' if with_merge else ''}"):
+        mlflow.log_params({
+            "model": model,
+            "prompt_version": PROMPT_VERSION,
+            "cases": cases_name,
+            "merge": with_merge,
+            "num_cases": score.cases,
+        })
+        mlflow.log_metrics({
+            "type_accuracy": score.type_rate,
+            "found_rate": score.found_rate,
+            "invented": score.invented,
+            "failed": score.failed,
+            "latency_p50_s": statistics.median(score.seconds),
+            "latency_p95_s": score.p95_seconds,
+        })
+
+
 async def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("models", nargs="+")
+    parser.add_argument("--cases", choices=["dev", "heldout"], default="dev")
     parser.add_argument("--show-errors", action="store_true")
     parser.add_argument("--merge", action="store_true", help="score what reaches the form after step 5")
+    parser.add_argument("--log", action="store_true", help="save each run to MLflow")
     args = parser.parse_args()
 
-    data = json.loads(CASES_FILE.read_text("utf-8"))
-    cases, today = data["cases"], date.fromisoformat(data["today"])
+    cases, today = load_cases(args.cases)
     n = len(cases)
 
     rows = []
     for model in args.models:
-        print(f"running {model} on {n} cases...")
+        print(f"running {model} on {n} {args.cases} cases...")
         score = await run_model(model, cases, today, args.merge)
         rows.append((model, score))
         if args.show_errors:
             for line in score.errors:
                 print("   ", line)
+        if args.log:
+            log_run(model, score, args.cases, args.merge)
 
     print()
-    print(f"{'model':<34}{'type ok':>9}{'found':>9}{'invented':>10}{'failed':>8}{'avg s':>8}")
+    print(f"{'model':<34}{'type ok':>9}{'found':>9}{'invented':>10}{'failed':>8}{'p50 s':>8}{'p95 s':>8}")
     for model, s in rows:
         print(
             f"{model:<34}{s.type_ok:>4}/{n:<4}{s.found:>4}/{s.expected:<4}"
-            f"{s.invented:>10}{s.failed:>8}{statistics.mean(s.seconds):>8.1f}"
+            f"{s.invented:>10}{s.failed:>8}{statistics.median(s.seconds):>8.1f}{s.p95_seconds:>8.1f}"
         )
+    if args.log:
+        print(f"\nsaved to MLflow. To view: mlflow ui --backend-store-uri {get_settings().mlflow_tracking_uri}")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,69 @@
+{
+  "today": "2026-11-21",
+  "note": "Held-out cases: never look at these while changing the prompt, only to measure.",
+  "cases": [
+    {
+      "message": "We're thinking Portugal for 8 days, budget 2500 EUR",
+      "type": "trip_info",
+      "updates": {"country": "Portugal", "num_days": 8, "budget_amount": 2500, "budget_currency": "EUR"}
+    },
+    {
+      "message": "just me travelling solo",
+      "type": "trip_info",
+      "updates": {"party_size": 1}
+    },
+    {
+      "message": "starting March 3",
+      "type": "trip_info",
+      "updates": {"start_date": "2027-03-03"}
+    },
+    {
+      "message": "I'd like a 5 star hotel with good reviews",
+      "type": "trip_info",
+      "updates": {"hotel_stars": 5},
+      "allow": ["min_review_score"]
+    },
+    {
+      "message": "we love hiking and local food",
+      "type": "trip_info",
+      "updates": {},
+      "interests_add": ["nature", "food"]
+    },
+    {
+      "message": "thank you so much",
+      "type": "greeting",
+      "updates": {}
+    },
+    {
+      "message": "what's the weather like on Mars?",
+      "type": "off_topic",
+      "updates": {}
+    },
+    {
+      "message": "Ich möchte nach Italien reisen",
+      "type": "non_english",
+      "updates": {}
+    },
+    {
+      "message": "around 800 GBP per person",
+      "type": "trip_info",
+      "updates": {"budget_amount": 800, "budget_currency": "GBP", "budget_scope": "per_person"}
+    },
+    {
+      "message": "Tokyo for 12 days with my two friends",
+      "type": "trip_info",
+      "updates": {"region": "Tokyo", "country": "Japan", "num_days": 12, "party_size": 3}
+    },
+    {
+      "message": "maybe sometime next summer, not sure",
+      "type": "trip_info",
+      "updates": {},
+      "unclear": ["start_date"]
+    },
+    {
+      "message": "nope",
+      "type": "no",
+      "updates": {}
+    }
+  ]
+}

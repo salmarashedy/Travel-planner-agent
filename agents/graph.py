@@ -21,7 +21,7 @@ from langgraph.graph import END, START, StateGraph
 
 from agents.decide import Decision, decide
 from agents.extract import StructuredLLM, extract
-from agents.grounding import Message, correct_message_type, unclear_mentioned
+from agents.grounding import tidy_extraction
 from agents.merge import MergeResult, merge
 from agents.reply import FALLBACK, build_reply
 from schemas.trip import Extraction, TripSpec
@@ -81,12 +81,7 @@ def build_graph(
             history=state["messages"][:-1],
         )
         if found is not None:
-            message = _user_message(state)
-            msg = Message(message)
-            found = found.model_copy(update={
-                "message_type": correct_message_type(found.message_type, message),
-                "unclear": [f for f in found.unclear if unclear_mentioned(f, msg)],
-            })
+            found = tidy_extraction(found, _user_message(state))
         return {
             "spec": _dump(spec),
             "prev_spec": _dump(spec),

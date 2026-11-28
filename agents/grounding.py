@@ -171,9 +171,9 @@ def correct_message_type(model_type: str, message: str) -> str:
         return "no"
     if text.split(" ")[0] in NO_STARTS and model_type in ("trip_info", "greeting", "yes"):
         return "no"
-    # Slang and typos ("nth", "idk") get labelled non-English. Our pilot is
-    # English-only, so plain ASCII text is treated as English.
-    if model_type == "non_english" and message.isascii():
+    # Short slang and typos ("nth", "idk lol") get labelled non-English. Longer
+    # text is left alone: French or Spanish is often plain ASCII too.
+    if model_type == "non_english" and message.isascii() and len(text.split()) <= 3:
         return "off_topic"
     return model_type
 
@@ -197,6 +197,15 @@ def unclear_mentioned(field: str, msg: Message) -> bool:
     """Only treat a field as vague if the user said something about it."""
     hints = UNCLEAR_HINTS.get(field)
     return hints is None or bool(msg.words & hints)
+
+
+def tidy_extraction(extraction, message: str):
+    """Python's fixes to the model's labels, applied before anything else uses them."""
+    msg = Message(message)
+    return extraction.model_copy(update={
+        "message_type": correct_message_type(extraction.message_type, message),
+        "unclear": [f for f in extraction.unclear if unclear_mentioned(f, msg)],
+    })
 
 
 def question_mentioned(question: str, msg: Message) -> bool:

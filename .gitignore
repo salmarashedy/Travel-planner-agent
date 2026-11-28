@@ -27,6 +27,7 @@ htmlcov/
 # MLflow artifacts
 mlruns/
 mlartifacts/
+mlflow.db
 
 # IDE and OS
 .vscode/
