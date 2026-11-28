@@ -29,6 +29,7 @@ from schemas.trip import Extraction, TripSpec
 
 class ChatState(TypedDict, total=False):
     messages: Annotated[list[dict], operator.add]  # appended to, never replaced
+    user_id: str
     spec: dict
     awaiting_confirmation: bool
     confirmed: bool
@@ -178,9 +179,9 @@ def build_graph(
     return graph.compile(checkpointer=checkpointer or InMemorySaver())
 
 
-async def run_turn(graph, session_id: str, message: str) -> ChatState:
+async def run_turn(graph, session_id: str, message: str, user_id: str | None = None) -> ChatState:
     """Send one user message through the graph and return the saved state."""
-    return await graph.ainvoke(
-        {"messages": [{"role": "user", "content": message}]},
-        config={"configurable": {"thread_id": session_id}},
-    )
+    turn: ChatState = {"messages": [{"role": "user", "content": message}]}
+    if user_id:
+        turn["user_id"] = user_id  # kept for long-term memory later
+    return await graph.ainvoke(turn, config={"configurable": {"thread_id": session_id}})

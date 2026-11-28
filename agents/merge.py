@@ -5,6 +5,7 @@ good ones, so one bad value never wipes out the rest of the message.
 """
 
 import logging
+import re
 from dataclasses import dataclass, field
 from datetime import date
 
@@ -120,6 +121,16 @@ def merge(spec: TripSpec, extraction: Extraction, message: str, today: date) -> 
     return result
 
 
+def _next_time_if_no_year(value: date, msg: Message, today: date) -> date:
+    """'June 10' said in November means next June. The model often picks this year."""
+    if value >= today or re.search(r"\b20\d\d\b", msg.text):
+        return value  # already ahead, or the user gave a year on purpose
+    try:
+        return value.replace(year=value.year + 1)
+    except ValueError:  # 29 February
+        return value
+
+
 def _check_dates(updates: dict, msg: Message, today: date, spec: TripSpec, result: MergeResult) -> None:
     parsed = {}
     for key in ("start_date", "end_date"):
@@ -136,7 +147,7 @@ def _check_dates(updates: dict, msg: Message, today: date, spec: TripSpec, resul
         if not date_mentioned(value, msg):
             result.dropped.append(f"{key}={text!r}")
             continue
-        parsed[key] = value
+        parsed[key] = _next_time_if_no_year(value, msg, today)
 
     start = parsed.get("start_date")
     if start is not None:

@@ -237,6 +237,24 @@ def test_past_start_date_is_rejected():
     assert r.rejected["start_date"] == "That start date is in the past."
 
 
+def test_date_without_a_year_moves_to_next_year():
+    # Real qwen3:4b answer: "June 10" said in November came back as this year's June.
+    r = run("June 10, me and my wife", found(start_date="2026-06-10", party_size=2))
+    assert r.spec.start_date == date(2027, 6, 10)
+    assert r.rejected == {}
+
+
+def test_end_date_without_a_year_moves_too():
+    r = run("from May 1 to May 5", found(start_date="2026-05-01", end_date="2026-05-05"))
+    assert r.spec.start_date == date(2027, 5, 1)
+    assert r.spec.num_days == 5
+
+
+def test_past_date_with_a_year_given_is_still_refused():
+    r = run("June 10 2026", found(start_date="2026-06-10"))
+    assert r.rejected["start_date"] == "That start date is in the past."
+
+
 def test_start_date_more_than_a_year_away_is_rejected():
     r = run("December 1 2027", found(start_date="2027-12-01"))
     assert r.rejected["start_date"] == "That date is more than a year away."
