@@ -44,6 +44,14 @@ async def test_chat_structured_raises_when_ollama_is_down():
         await make_client(handler).chat_structured([], {})
 
 
+async def test_timeout_error_names_the_cause():
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ReadTimeout("")
+
+    with pytest.raises(LLMClientError, match="ReadTimeout"):
+        await make_client(handler).chat_structured([], {})
+
+
 async def test_chat_structured_raises_on_bad_payload():
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={"unexpected": True})

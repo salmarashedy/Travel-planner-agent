@@ -25,6 +25,22 @@ FieldName = Literal[
 
 ALLOWED_CURRENCIES: tuple[str, ...] = ("EUR", "USD", "EGP", "GBP")
 
+# Only words that point to exactly one currency. "$", "£", "dollars" and "pounds"
+# are left out on purpose: they could mean several currencies, so the bot asks.
+CURRENCY_WORDS: dict[str, str] = {
+    "€": "EUR",
+    "euro": "EUR",
+    "euros": "EUR",
+    "us dollar": "USD",
+    "us dollars": "USD",
+    "egyptian pound": "EGP",
+    "egyptian pounds": "EGP",
+    "british pound": "GBP",
+    "british pounds": "GBP",
+    "pound sterling": "GBP",
+    "sterling": "GBP",
+}
+
 # The six fields that must be known before a trip can be planned, in asking order.
 REQUIRED_FIELDS: tuple[str, ...] = (
     "country",
@@ -73,8 +89,11 @@ class TripSpec(BaseModel):
 
     @field_validator("budget_currency", mode="before")
     @classmethod
-    def _upper_currency(cls, value: object) -> object:
-        return value.strip().upper() if isinstance(value, str) else value
+    def _normalize_currency(cls, value: object) -> object:
+        if not isinstance(value, str):
+            return value
+        text = value.strip()
+        return CURRENCY_WORDS.get(text.lower(), text.upper())
 
     def missing_required(self) -> list[str]:
         """Required fields that are still empty, in asking order."""

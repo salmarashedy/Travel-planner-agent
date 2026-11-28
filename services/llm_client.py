@@ -142,7 +142,10 @@ class OllamaClient:
                     response.raise_for_status()
                     data = response.json()
         except (httpx.HTTPError, ValueError) as exc:
-            raise LLMClientError(f"Unable to get structured chat output: {exc}") from exc
+            # Timeouts have an empty message, so include the exception type.
+            raise LLMClientError(
+                f"Unable to get structured chat output: {type(exc).__name__}: {exc}"
+            ) from exc
         message = data.get("message") if isinstance(data, dict) else None
         content = message.get("content") if isinstance(message, dict) else None
         if not isinstance(content, str):

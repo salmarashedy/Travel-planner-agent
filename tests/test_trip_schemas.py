@@ -86,6 +86,21 @@ def test_currency_is_uppercased():
 
 
 @pytest.mark.parametrize(
+    ("word", "code"),
+    [("euros", "EUR"), ("Euro", "EUR"), ("€", "EUR"), ("US dollars", "USD"),
+     ("Egyptian pounds", "EGP"), ("sterling", "GBP")],
+)
+def test_clear_currency_words_become_codes(word, code):
+    assert TripSpec(budget_currency=word).budget_currency == code
+
+
+@pytest.mark.parametrize("word", ["$", "£", "dollars", "pounds"])
+def test_unclear_currency_words_are_refused(word):
+    with pytest.raises(ValidationError):
+        TripSpec(budget_currency=word)
+
+
+@pytest.mark.parametrize(
     ("field", "value"),
     [
         ("num_days", 0),
