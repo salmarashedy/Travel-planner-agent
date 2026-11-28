@@ -44,6 +44,20 @@ async def test_chat_structured_raises_when_ollama_is_down():
         await make_client(handler).chat_structured([], {})
 
 
+async def test_max_tokens_is_sent_only_when_asked():
+    bodies = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        bodies.append(json.loads(request.content))
+        return httpx.Response(200, json={"message": {"content": "{}"}})
+
+    client = make_client(handler)
+    await client.chat_structured([], {})
+    await client.chat_structured([], {}, max_tokens=200)
+    assert "num_predict" not in bodies[0]["options"]
+    assert bodies[1]["options"]["num_predict"] == 200
+
+
 async def test_timeout_error_names_the_cause():
     def handler(request: httpx.Request) -> httpx.Response:
         raise httpx.ReadTimeout("")

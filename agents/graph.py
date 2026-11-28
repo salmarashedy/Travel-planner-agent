@@ -12,6 +12,7 @@ from agents.extract import StructuredLLM, extract
 from agents.grounding import tidy_extraction
 from agents.merge import MergeResult, merge
 from agents.reply import FALLBACK, build_reply
+from agents.side_answer import answer_side_question
 from schemas.trip import Extraction, TripSpec
 
 
@@ -30,6 +31,7 @@ class ChatState(TypedDict, total=False):
     rejected: dict[str, str]
     conflicts: list[str]
     side_question: str | None
+    side_answer: str | None
     action: str
     fields: list[str]
 
@@ -78,6 +80,7 @@ def build_graph(
             "rejected": {},
             "conflicts": [],
             "side_question": None,
+            "side_answer": None,
             "fields": [],
         }
 
@@ -117,6 +120,14 @@ def build_graph(
             "confirmed": decision.action == "confirmed",
         }
 
+    async def side_answer_node(state: ChatState) -> dict:
+        return {"side_answer": await answer_side_question(llm, state["side_question"])}
+
+    def needs_side_answer(state: ChatState) -> str:
+        if state.get("side_question") and state["action"] != "confirmed":
+            return "side_answer"
+        return "reply"
+
     def reply_node(state: ChatState) -> dict:
         extraction = Extraction(**state["extraction"])
         decision = Decision(
@@ -133,8 +144,10 @@ def build_graph(
             extraction.message_type,
             state.get("ask_counts", {}),
             unclear=extraction.unclear,
-            side_answer=None,  # TODO: side answers (step 4b)
+            side_answer=state.get("side_answer"),
             user_message=_user_message(state),
+            # asking a side question isn't ignoring ours, so don't count it
+            count_asks=not state.get("side_question"),
         )
         return {
             "reply": reply.text,
@@ -147,6 +160,7 @@ def build_graph(
     graph.add_node("fail", fail_node)
     graph.add_node("merge", merge_node)
     graph.add_node("decide", decide_node)
+    graph.add_node("side_answer", side_answer_node)
     graph.add_node("reply", reply_node)
 
     graph.add_edge(START, "extract")
@@ -154,7 +168,8 @@ def build_graph(
         "extract", lambda s: "fail" if s["extraction"] is None else "merge", ["fail", "merge"]
     )
     graph.add_edge("merge", "decide")
-    graph.add_edge("decide", "reply")
+    graph.add_conditional_edges("decide", needs_side_answer, ["side_answer", "reply"])
+    graph.add_edge("side_answer", "reply")
     graph.add_edge("fail", END)
     graph.add_edge("reply", END)
 

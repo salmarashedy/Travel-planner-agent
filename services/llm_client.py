@@ -110,7 +110,10 @@ class OllamaClient:
         return result
 
     async def chat_structured(
-        self, messages: list[dict[str, str]], schema: dict[str, Any]
+        self,
+        messages: list[dict[str, str]],
+        schema: dict[str, Any],
+        max_tokens: int | None = None,
     ) -> str:
         payload: dict[str, Any] = {
             "model": self.model,
@@ -124,6 +127,8 @@ class OllamaClient:
                 "num_ctx": self.num_ctx,
             },
         }
+        if max_tokens:
+            payload["options"]["num_predict"] = max_tokens
         try:
             if self._client is not None:
                 response = await self._client.post(

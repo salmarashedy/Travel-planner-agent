@@ -137,6 +137,42 @@ async def test_your_chat_after_the_summary(chat):
     assert s["confirmed"] is True
 
 
+async def test_side_question_is_answered_and_the_chat_goes_on(chat):
+    await chat("7 days in Italy, 1500 euros, 4 stars")
+    s = await chat("is Rome nice in winter?")
+    assert s["reply"] == (
+        f"It's lovely that time of year. {QUESTIONS['start_date']} {QUESTIONS['party_size']}"
+    )
+    assert s["spec"]["region"] == "Rome"
+    assert chat.llm.side_calls[-1][-1]["content"] == "Is Rome nice in winter?"
+
+
+async def test_side_answer_with_a_price_is_replaced(chat):
+    chat.llm.side_answers["Is Rome nice in winter?"] = "Yes, and hotels are about 80 euros."
+    s = await chat("is Rome nice in winter?")
+    assert s["reply"].startswith("I'll check live prices and details when I build your plan.")
+
+
+async def test_side_answer_failing_still_gives_the_normal_reply(chat):
+    chat.llm.side_answers["Is Rome nice in winter?"] = LLMClientError("down")
+    s = await chat("is Rome nice in winter?")
+    assert s["reply"] == f"{QUESTIONS['start_date']} {QUESTIONS['num_days']}"
+
+
+async def test_side_questions_do_not_count_as_ignoring_ours(chat):
+    # from a real chat: three side questions made the bot switch to strict hints
+    await chat("7 days in Italy, 1500 euros, 4 stars")
+    for _ in range(4):
+        s = await chat("is Rome nice in winter?")
+    assert QUESTIONS["start_date"] in s["reply"]
+    assert "Please reply with" not in s["reply"]
+
+
+async def test_no_side_call_without_a_question(chat):
+    await chat("7 days in Italy, 1500 euros, 4 stars")
+    assert chat.llm.side_calls == []
+
+
 async def test_state_is_plain_json(chat):
     s = await chat("7 days in Italy, 1500 euros, 4 stars")
     json.dumps(s)

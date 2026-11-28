@@ -127,13 +127,14 @@ def build_reply(
     unclear: list[str] = (),
     side_answer: str | None = None,
     user_message: str = "",
+    count_asks: bool = True,
 ) -> Reply:
     if decision.action == "confirmed":
         return Reply(CONFIRMED, {})
 
     asked = decision.fields if decision.action in ("ask", "redirect") else []
     # counts are for asks in a row, so anything not asked starts over
-    counts = {name: ask_counts.get(name, 0) + 1 for name in asked}
+    counts = {name: ask_counts.get(name, 0) + count_asks for name in asked}
     questions = [question(name, counts[name], name in unclear) for name in asked]
 
     parts = []

@@ -23,7 +23,7 @@ HISTORY_TURNS = 2
 
 class StructuredLLM(Protocol):
     async def chat_structured(
-        self, messages: list[dict[str, str]], schema: dict[str, Any]
+        self, messages: list[dict[str, str]], schema: dict[str, Any], max_tokens: int | None = None
     ) -> str: ...
 
 
