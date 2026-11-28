@@ -1,14 +1,7 @@
-from typing import Any
-
-from pydantic import ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
-class FlexibleModel:
+class ErrorResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
-
-TripSpec = dict[str, Any]
-
-
-class ErrorResponse(FlexibleModel):
     detail: str = Field(min_length=1)

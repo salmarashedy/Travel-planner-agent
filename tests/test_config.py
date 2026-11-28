@@ -6,7 +6,7 @@ def test_settings_load_defaults():
     assert settings.app_name == "Travel Agent"
     assert settings.app_version == "0.1.0"
     assert settings.ollama_base_url == "http://localhost:11434"
-    assert settings.ollama_model == "qwen3:4b"
+    assert settings.ollama_model == "qwen3:4b-thinking-2507-q4_K_M"
     assert settings.ollama_timeout == 60
     assert settings.ollama_temperature == 0
     assert settings.ollama_seed == 42

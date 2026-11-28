@@ -1,0 +1,30 @@
+[
+  {
+    "message": "10 days in Japan, 3000 USD",
+    "answer": {"message_type": "trip_info", "updates": {"country": "Japan", "num_days": 10, "budget_amount": 3000, "budget_currency": "USD"}}
+  },
+  {
+    "message": "two adults and a baby, 1k each",
+    "answer": {"message_type": "trip_info", "updates": {"party_size": 3, "budget_amount": 1000, "budget_scope": "per_person"}}
+  },
+  {
+    "message": "a cheap trip in the spring",
+    "answer": {"message_type": "trip_info", "unclear": ["budget_amount", "start_date"]}
+  },
+  {
+    "message": "5 days, from January 15 to January 19",
+    "answer": {"message_type": "trip_info", "updates": {"start_date": "{jan_15}", "end_date": "{jan_19}", "num_days": 5}}
+  },
+  {
+    "message": "is the food good in Lisbon?",
+    "answer": {"message_type": "trip_info", "updates": {"region": "Lisbon", "country": "Portugal"}, "side_question": "Is the food good in Lisbon?"}
+  },
+  {
+    "message": "we love beaches, not museums",
+    "answer": {"message_type": "trip_info", "interests_add": ["beaches"], "interests_remove": ["history"]}
+  },
+  {
+    "message": "thanks!",
+    "answer": {"message_type": "greeting"}
+  }
+]

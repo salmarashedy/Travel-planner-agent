@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     ollama_base_url: str = Field(
         default="http://localhost:11434", validation_alias="OLLAMA_BASE_URL"
     )
-    ollama_model: str = Field(default="qwen3:4b", validation_alias="OLLAMA_MODEL")
+    ollama_model: str = Field(default="qwen3:4b-thinking-2507-q4_K_M", validation_alias="OLLAMA_MODEL")
     ollama_timeout: float = Field(default=60.0, gt=0, validation_alias="OLLAMA_TIMEOUT")
     ollama_temperature: float = Field(
         default=0.0, ge=0, validation_alias="OLLAMA_TEMPERATURE"
@@ -26,7 +26,8 @@ class Settings(BaseSettings):
     ollama_num_ctx: int = Field(default=8192, gt=0, validation_alias="OLLAMA_NUM_CTX")
     database_url: str | None = Field(default=None, validation_alias="DATABASE_URL")
     mlflow_tracking_uri: str = Field(
-        default="./mlruns", validation_alias="MLFLOW_TRACKING_URI"
+        # MLflow 3 refuses a plain ./mlruns folder
+        default="sqlite:///mlflow.db", validation_alias="MLFLOW_TRACKING_URI"
     )
     log_level: str = Field(default="INFO", validation_alias="LOG_LEVEL")
 
