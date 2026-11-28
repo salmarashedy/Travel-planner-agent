@@ -2,6 +2,7 @@
 
     python -m scripts.compare_models qwen3:4b llama3.2:3b
     python -m scripts.compare_models qwen3:4b --show-errors
+    python -m scripts.compare_models qwen3:4b --merge     # after the step 5 checks
 """
 
 import argparse
@@ -12,11 +13,13 @@ import time
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
+from typing import get_args
 
 from agents.extract import extract
+from agents.merge import merge
 from core.config import get_settings
 from schemas.country import normalize_country
-from schemas.trip import Extraction, TripSpec
+from schemas.trip import Extraction, FieldName, TripSpec
 from services.llm_client import OllamaClient
 
 CASES_FILE = Path(__file__).resolve().parent.parent / "tests" / "golden" / "extract_dev.json"
@@ -113,7 +116,7 @@ def score_case(case: dict, result: Extraction | None, score: Score) -> None:
         score.errors.append(f"{case['message']!r}: " + "; ".join(problems))
 
 
-async def run_model(model: str, cases: list[dict], today: date) -> Score:
+async def run_model(model: str, cases: list[dict], today: date, with_merge: bool) -> Score:
     settings = get_settings().model_copy(update={"ollama_model": model})
     llm = OllamaClient(settings)
     score = Score()
@@ -127,14 +130,40 @@ async def run_model(model: str, cases: list[dict], today: date) -> Score:
             llm, case["message"], TripSpec(), today, last_question=case.get("last_question")
         )
         score.seconds.append(time.perf_counter() - start)
+        if with_merge and result is not None:
+            result = after_merge(result, case["message"], today)
+            case = {**case, "updates": {k: v for k, v in case.get("updates", {}).items() if k != "end_date"}}
         score_case(case, result, score)
     return score
+
+
+def after_merge(result: Extraction, message: str, today: date) -> Extraction:
+    """What actually reaches the form, shaped like an Extraction so it scores the same way."""
+    merged = merge(TripSpec(), result, message, today)
+    kept = merged.spec.model_dump(mode="json", exclude_none=True, exclude_defaults=True)
+    interests = kept.pop("interests", [])
+    kept.pop("from_memory", None)
+    sentences = " ".join(merged.conflicts)
+    conflicts = [
+        {"field": name, "options": ["?", "?"]}
+        for name in get_args(FieldName)
+        if f"For {name.replace('_', ' ')} you said" in sentences
+    ]
+    return Extraction(
+        message_type=result.message_type,
+        updates=kept,
+        interests_add=interests,
+        unclear=result.unclear,
+        conflicts=conflicts,
+        side_question=merged.side_question,
+    )
 
 
 async def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("models", nargs="+")
     parser.add_argument("--show-errors", action="store_true")
+    parser.add_argument("--merge", action="store_true", help="score what reaches the form after step 5")
     args = parser.parse_args()
 
     data = json.loads(CASES_FILE.read_text("utf-8"))
@@ -144,7 +173,7 @@ async def main() -> None:
     rows = []
     for model in args.models:
         print(f"running {model} on {n} cases...")
-        score = await run_model(model, cases, today)
+        score = await run_model(model, cases, today, args.merge)
         rows.append((model, score))
         if args.show_errors:
             for line in score.errors:
