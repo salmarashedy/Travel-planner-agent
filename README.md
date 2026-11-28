@@ -19,7 +19,7 @@ The API is at `http://127.0.0.1:8000`, with docs at `/docs` and health at `/heal
 The chat needs [Ollama](https://ollama.com) running with the model from `.env`:
 
 ```bash
-ollama pull qwen3:4b
+ollama pull qwen3:4b-thinking-2507-q4_K_M
 ```
 
 The app and `/health` start fine without Ollama; only chat replies need it.
@@ -75,8 +75,8 @@ Real-model checks are kept apart and skipped by default. With Ollama running:
 python -m pytest -m llm                                  # golden-set checks with the real model
 python -m scripts.chat                                   # chat in the terminal
 python -m scripts.try_extract "10 days in Greece"        # see what the model finds
-python -m scripts.compare_models qwen3:4b --merge        # score it on the dev messages
-python -m scripts.compare_models qwen3:4b --merge --cases heldout --log
+python -m scripts.compare_models qwen3:4b-thinking-2507-q4_K_M --merge        # score it on the dev messages
+python -m scripts.compare_models qwen3:4b-thinking-2507-q4_K_M --merge --cases heldout --log
 mlflow ui --backend-store-uri sqlite:///mlflow.db        # compare saved runs
 ```
 

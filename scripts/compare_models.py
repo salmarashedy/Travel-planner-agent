@@ -1,6 +1,6 @@
 # Score models on the golden cases:
-#   python -m scripts.compare_models qwen3:4b gemma3:4b --show-errors
-#   python -m scripts.compare_models qwen3:4b --merge --cases heldout --log
+#   python -m scripts.compare_models qwen3:4b-thinking-2507-q4_K_M gemma3:4b --show-errors
+#   python -m scripts.compare_models qwen3:4b-thinking-2507-q4_K_M --merge --cases heldout --log
 
 import argparse
 import asyncio
