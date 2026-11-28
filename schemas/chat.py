@@ -2,7 +2,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from schemas.common import TripSpec
+from schemas.trip import TripSpec
 
 
 class ChatRequest(BaseModel):
@@ -15,5 +15,5 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     reply: str
-    trip_spec: TripSpec
+    trip_spec: TripSpec | None
     status: Literal["collecting", "confirmed", "error"]

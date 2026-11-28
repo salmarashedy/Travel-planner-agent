@@ -108,3 +108,43 @@ class OllamaClient:
         if not isinstance(result, str):
             raise LLMClientError("Ollama returned an invalid response payload.")
         return result
+
+    async def chat_structured(
+        self, messages: list[dict[str, str]], schema: dict[str, Any]
+    ) -> str:
+        """Send a chat and force the answer into `schema`'s JSON shape.
+
+        Returns the raw JSON text so the caller can validate it and, if it is
+        invalid, retry with the validation error. Thinking mode is turned off.
+        """
+        payload: dict[str, Any] = {
+            "model": self.model,
+            "messages": messages,
+            "format": schema,
+            "stream": False,
+            "think": False,
+            "options": {
+                "temperature": self.temperature,
+                "seed": self.seed,
+                "num_ctx": self.num_ctx,
+            },
+        }
+        try:
+            if self._client is not None:
+                response = await self._client.post(
+                    f"{self.base_url}/api/chat", json=payload, timeout=self.timeout
+                )
+                response.raise_for_status()
+                data = response.json()
+            else:
+                async with httpx.AsyncClient(timeout=self.timeout) as client:
+                    response = await client.post(f"{self.base_url}/api/chat", json=payload)
+                    response.raise_for_status()
+                    data = response.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            raise LLMClientError(f"Unable to get structured chat output: {exc}") from exc
+        message = data.get("message") if isinstance(data, dict) else None
+        content = message.get("content") if isinstance(message, dict) else None
+        if not isinstance(content, str):
+            raise LLMClientError("Ollama returned an invalid chat payload.")
+        return content
