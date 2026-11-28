@@ -7,8 +7,6 @@ from schemas.country import normalize_country
 from schemas.trip import Extraction, TripSpec
 
 
-# ---------- Country ----------
-
 @pytest.mark.parametrize(
     ("raw", "expected"),
     [
@@ -54,8 +52,6 @@ def test_trip_spec_refuses_fake_country():
     with pytest.raises(ValidationError):
         TripSpec(country="Narnia")
 
-
-# ---------- TripSpec rules ----------
 
 def test_empty_form_is_missing_all_required_fields_in_order():
     assert TripSpec().missing_required() == [
@@ -128,7 +124,6 @@ def test_assignment_is_validated_so_bad_values_cannot_be_stored():
 
 
 def test_past_start_date_is_allowed_in_the_form_itself():
-    # The date check lives in the merge step, so old sessions can still load.
     assert TripSpec(start_date=date(2000, 1, 1)).start_date == date(2000, 1, 1)
 
 
@@ -136,8 +131,6 @@ def test_unknown_field_is_refused():
     with pytest.raises(ValidationError):
         TripSpec(hotel_name="Hilton")
 
-
-# ---------- Extraction ----------
 
 def test_minimal_extraction_has_empty_defaults():
     ex = Extraction(message_type="yes")
@@ -154,7 +147,7 @@ def test_extraction_parses_model_json():
         ' "conflicts": [{"field": "num_days", "options": ["7", "10"]}]}'
     )
     assert ex.updates.country == "Italy"
-    assert ex.updates.start_date == "2027-06-10"  # dates stay as text
+    assert ex.updates.start_date == "2027-06-10"
     assert ex.interests_add == ["history", "food"]
     assert ex.conflicts[0].field == "num_days"
 

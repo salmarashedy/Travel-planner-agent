@@ -1,10 +1,5 @@
-"""Real-model checks on the golden cases. Skipped by default; run with:
-
-    python -m pytest -m llm
-
-The limits are set a little below what qwen3:4b scored when they were
-written, so these fail if a prompt or model change makes things worse.
-"""
+# Real-model checks, skipped unless you run: python -m pytest -m llm
+# The limits sit a bit below what qwen3:4b scored, so they catch it getting worse.
 
 import httpx
 import pytest
@@ -15,7 +10,7 @@ from scripts.compare_models import load_cases, run_model
 pytestmark = pytest.mark.llm
 
 LIMITS = {
-    # cases: (min message-type accuracy, min share of values found)
+    # (min type accuracy, min share of values found)
     "dev": (0.90, 0.70),
     "heldout": (0.85, 0.70),
 }

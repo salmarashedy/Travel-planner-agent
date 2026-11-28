@@ -1,9 +1,3 @@
-"""Decide which of the model's findings are allowed into the trip form.
-
-The model only suggests values. This step checks each one and keeps the
-good ones, so one bad value never wipes out the rest of the message.
-"""
-
 import logging
 import re
 from dataclasses import dataclass, field
@@ -41,7 +35,7 @@ class MergeResult:
     rejected: dict[str, str] = field(default_factory=dict)
     conflicts: list[str] = field(default_factory=list)
     side_question: str | None = None
-    dropped: list[str] = field(default_factory=list)  # values the user never said
+    dropped: list[str] = field(default_factory=list)
 
 
 def _label(name: str) -> str:
@@ -51,7 +45,6 @@ def _label(name: str) -> str:
 def _reason(name: str, error: ValidationError) -> str:
     if name in REASONS:
         return REASONS[name]
-    # Our own validators (like the country check) already have a friendly message.
     return error.errors()[0]["msg"].removeprefix("Value error, ")
 
 
@@ -66,11 +59,11 @@ def merge(spec: TripSpec, extraction: Extraction, message: str, today: date) -> 
     for conflict in extraction.conflicts:
         said = [o for o in conflict.options if o.lower() in msg.text]
         if len(said) < 2:
-            continue  # the model imagined it
+            continue
         updates.pop(conflict.field, None)
         result.conflicts.append(f"For {_label(conflict.field)} you said {' and '.join(said)}.")
 
-    # The model often just picks one side of "1500 or 2000"; treat it as the conflict it is.
+    # the model usually just picks one side of "1500 or 2000"
     for name in ("budget_amount", "num_days", "party_size", "hotel_stars"):
         options = either_or(updates[name], msg) if name in updates else None
         if options:
@@ -80,11 +73,11 @@ def merge(spec: TripSpec, extraction: Extraction, message: str, today: date) -> 
     region_kept = "region" in updates and is_grounded("region", updates["region"], msg)
     for name in list(updates):
         if name in ("start_date", "end_date"):
-            continue  # checked in _check_dates once they are parsed
+            continue
         if not is_grounded(name, updates[name], msg, region_kept=region_kept):
             result.dropped.append(f"{name}={updates.pop(name)!r}")
 
-    # After grounding: num_days worked out from the dates is ours, not the model's.
+    # dates go last so the day count we work out isn't checked against the text
     _check_dates(updates, msg, today, spec, result)
 
     new = spec.model_copy(deep=True)
@@ -122,9 +115,9 @@ def merge(spec: TripSpec, extraction: Extraction, message: str, today: date) -> 
 
 
 def _next_time_if_no_year(value: date, msg: Message, today: date) -> date:
-    """'June 10' said in November means next June. The model often picks this year."""
+    # "June 10" said in November means next June
     if value >= today or re.search(r"\b20\d\d\b", msg.text):
-        return value  # already ahead, or the user gave a year on purpose
+        return value
     try:
         return value.replace(year=value.year + 1)
     except ValueError:  # 29 February
@@ -140,8 +133,7 @@ def _check_dates(updates: dict, msg: Message, today: date, spec: TripSpec, resul
         try:
             value = date.fromisoformat(text)
         except ValueError:
-            # An unreadable end date is reported under num_days so the bot asks
-            # "what is your end date, or how many days?" and not for the start again.
+            # bad end date goes under num_days so we don't re-ask the start date
             result.rejected["num_days" if key == "end_date" else "start_date"] = "I couldn't read that date."
             continue
         if not date_mentioned(value, msg):

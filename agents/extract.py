@@ -33,8 +33,7 @@ def next_occurrence(month: int, day: int, today: date) -> date:
 
 
 def year_rule(today: date) -> str:
-    # Small models get the year wrong for dates that already passed this year,
-    # so spell it out with real years instead of asking them to work it out.
+    # small models get the year wrong, so give them real dates
     jan, dec = next_occurrence(1, 15, today), next_occurrence(12, 20, today)
     return (
         f"A date without a year means its next time: on or after {today:%d %B} is "
@@ -44,8 +43,7 @@ def year_rule(today: date) -> str:
 
 
 def example_turns(today: date) -> list[dict[str, str]]:
-    # The examples work much better with a small model as earlier chat turns
-    # than as text inside the system prompt.
+    # qwen3:4b follows examples much better as chat turns than in the prompt
     dates = {
         "{jan_15}": next_occurrence(1, 15, today).isoformat(),
         "{jan_19}": next_occurrence(1, 19, today).isoformat(),
@@ -93,14 +91,13 @@ async def extract(
     last_question: str | None = None,
     history: Sequence[dict[str, str]] = (),
 ) -> Extraction | None:
-    """Ask the model what the latest message says. None means we couldn't get a usable answer."""
     messages = build_messages(message, spec, today, last_question, history)
 
     for attempt in (1, 2):
         try:
             raw = await llm.chat_structured(messages, SCHEMA)
         except LLMClientError as exc:
-            # Ollama is down or the model is missing; retrying won't help.
+            # no point retrying if Ollama is down
             logger.warning("extraction call failed: %s", exc)
             return None
 

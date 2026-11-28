@@ -14,8 +14,6 @@ def send(client, message, session="session_12345", **extra):
     return response.json()
 
 
-# ---------- input checks (unchanged contract) ----------
-
 @pytest.mark.parametrize(
     "payload",
     [
@@ -33,8 +31,6 @@ def test_optional_user_id_is_accepted(client):
     body = send(client, "hi", user_id="user_123")
     assert body["status"] == "collecting"
 
-
-# ---------- real replies ----------
 
 def test_first_message(client):
     body = send(client, "7 days in Italy, 1500 euros, 4 stars")
@@ -77,8 +73,6 @@ def test_sessions_do_not_mix(client):
     assert body["trip_spec"]["country"] is None
 
 
-# ---------- when things go wrong ----------
-
 def test_model_down_gives_a_friendly_reply(client, fake_llm):
     fake_llm.answers["7 days in Italy, 1500 euros, 4 stars"] = LLMClientError("down")
     body = send(client, "7 days in Italy, 1500 euros, 4 stars")
@@ -99,10 +93,8 @@ def test_chat_works_again_after_a_crash(client, fake_llm):
     assert send(client, "hi")["status"] == "collecting"
 
 
-# ---------- two messages at once ----------
-
 async def test_messages_sent_at_once_to_one_session_are_both_kept(chat_service, fake_llm):
-    fake_llm.delay = 0.05  # long enough for the two turns to overlap without the lock
+    fake_llm.delay = 0.05
     first = ChatRequest(session_id="session_race", message="7 days in Italy, 1500 euros, 4 stars")
     second = ChatRequest(session_id="session_race", message="June 10, 2 people")
 

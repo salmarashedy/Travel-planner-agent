@@ -2,12 +2,8 @@ import asyncio
 import json
 
 
+# answers by message text; an answer can also be an exception to raise
 class FakeLLM:
-    """Stands in for Qwen3: answers by message text, so tests read like a real chat.
-
-    An answer can be a dict (returned as JSON) or an exception (raised).
-    """
-
     def __init__(self, answers: dict, delay: float = 0):
         self.answers = answers
         self.delay = delay

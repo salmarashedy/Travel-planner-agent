@@ -1,15 +1,3 @@
-"""The Feature 1 chat turn as a LangGraph graph.
-
-    extract --(model failed)--> fail --> END
-       |
-       v
-     merge --> decide --> reply --> END
-
-Each chat is saved by the checkpointer under its session id, so the next
-message picks up where the last one stopped. Everything stored in the state
-is plain JSON (dicts, lists, strings) so any checkpointer can save it.
-"""
-
 import operator
 from collections.abc import Callable
 from datetime import date
@@ -28,7 +16,7 @@ from schemas.trip import Extraction, TripSpec
 
 
 class ChatState(TypedDict, total=False):
-    messages: Annotated[list[dict], operator.add]  # appended to, never replaced
+    messages: Annotated[list[dict], operator.add]
     user_id: str
     spec: dict
     awaiting_confirmation: bool
@@ -36,7 +24,7 @@ class ChatState(TypedDict, total=False):
     ask_counts: dict[str, int]
     reply: str
 
-    # Only meaningful during the current turn.
+    # per turn
     prev_spec: dict
     extraction: dict | None
     rejected: dict[str, str]
@@ -94,7 +82,6 @@ def build_graph(
         }
 
     def fail_node(state: ChatState) -> dict:
-        # Saved in the history too, so the next turn knows what the bot said.
         return {
             "action": "fail",
             "reply": FALLBACK,
@@ -146,7 +133,7 @@ def build_graph(
             extraction.message_type,
             state.get("ask_counts", {}),
             unclear=extraction.unclear,
-            side_answer=None,  # step 4b: short side answers come later
+            side_answer=None,  # TODO: side answers (step 4b)
             user_message=_user_message(state),
         )
         return {
@@ -175,8 +162,7 @@ def build_graph(
 
 
 async def run_turn(graph, session_id: str, message: str, user_id: str | None = None) -> ChatState:
-    """Send one user message through the graph and return the saved state."""
     turn: ChatState = {"messages": [{"role": "user", "content": message}]}
     if user_id:
-        turn["user_id"] = user_id  # kept for long-term memory later
+        turn["user_id"] = user_id
     return await graph.ainvoke(turn, config={"configurable": {"thread_id": session_id}})

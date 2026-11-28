@@ -1,5 +1,3 @@
-"""The thin layer between the HTTP route and the chat graph."""
-
 import asyncio
 import logging
 from collections import defaultdict
@@ -18,8 +16,7 @@ ERROR_REPLY = "Sorry, something went wrong on my side. Please try again."
 class ChatService:
     def __init__(self, graph) -> None:
         self.graph = graph
-        # One lock per session, so two messages sent at once to the same chat
-        # can't both read the old state and overwrite each other.
+        # one lock per session, otherwise two messages at once overwrite each other
         self._locks: defaultdict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
 
     async def handle(self, request: ChatRequest) -> ChatResponse:
@@ -40,5 +37,4 @@ class ChatService:
 
 
 def build_chat_service(settings: Settings) -> ChatService:
-    # Nothing here talks to Ollama yet, so the app starts even when it's down.
     return ChatService(build_graph(OllamaClient(settings)))

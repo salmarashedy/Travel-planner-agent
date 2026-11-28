@@ -1,7 +1,5 @@
-"""Try the extraction step against the real model.
-
-    python -m scripts.try_extract "7 days in Italy with 1500 euros"
-"""
+# See what the model finds in a message:
+#   python -m scripts.try_extract "7 days in Italy with 1500 euros"
 
 import asyncio
 import sys

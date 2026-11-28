@@ -1,5 +1,3 @@
-"""Feature 1 data objects: the trip form (TripSpec) and what the LLM found (Extraction)."""
-
 from datetime import date
 from typing import Literal
 
@@ -25,8 +23,7 @@ FieldName = Literal[
 
 ALLOWED_CURRENCIES: tuple[str, ...] = ("EUR", "USD", "EGP", "GBP")
 
-# Only words that point to exactly one currency. "$", "£", "dollars" and "pounds"
-# are left out on purpose: they could mean several currencies, so the bot asks.
+# "$", "£", "dollars" and "pounds" are left out on purpose: they're ambiguous
 CURRENCY_WORDS: dict[str, str] = {
     "€": "EUR",
     "euro": "EUR",
@@ -41,7 +38,7 @@ CURRENCY_WORDS: dict[str, str] = {
     "sterling": "GBP",
 }
 
-# The six fields that must be known before a trip can be planned, in asking order.
+# in the order the bot asks for them
 REQUIRED_FIELDS: tuple[str, ...] = (
     "country",
     "start_date",
@@ -52,13 +49,9 @@ REQUIRED_FIELDS: tuple[str, ...] = (
 )
 
 
+# past start dates are allowed here on purpose, so an old chat can still load;
+# merge and decide check the date instead
 class TripSpec(BaseModel):
-    """The saved trip form. A value that breaks a rule cannot be stored.
-
-    Past start dates are NOT rejected here: an old session reopened after the
-    date passed must still load. The date check lives in the merge step.
-    """
-
     model_config = ConfigDict(extra="forbid", validate_assignment=True)
 
     country: str | None = None
@@ -96,20 +89,14 @@ class TripSpec(BaseModel):
         return CURRENCY_WORDS.get(text.lower(), text.upper())
 
     def missing_required(self) -> list[str]:
-        """Required fields that are still empty, in asking order."""
         return [name for name in REQUIRED_FIELDS if getattr(self, name) is None]
 
     def is_complete(self) -> bool:
         return not self.missing_required()
 
 
+# dates stay as text so one badly written date doesn't break the whole answer
 class Updates(BaseModel):
-    """Raw values found in the latest message only.
-
-    Dates stay as text so one badly written date cannot spoil the whole answer;
-    they are parsed and checked in the merge step.
-    """
-
     model_config = ConfigDict(extra="forbid")
 
     country: str | None = None
@@ -126,8 +113,6 @@ class Updates(BaseModel):
 
 
 class Conflict(BaseModel):
-    """Two or more different values the user gave for one field in the same message."""
-
     model_config = ConfigDict(extra="forbid")
 
     field: FieldName
@@ -135,8 +120,6 @@ class Conflict(BaseModel):
 
 
 class Extraction(BaseModel):
-    """The LLM's only output. It reports facts; it never changes the form itself."""
-
     model_config = ConfigDict(extra="forbid")
 
     message_type: Literal["trip_info", "greeting", "off_topic", "non_english", "yes", "no"]

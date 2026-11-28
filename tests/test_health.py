@@ -16,13 +16,12 @@ def test_health_does_not_require_ollama(client, fake_llm):
 
 
 def test_real_app_starts_without_contacting_ollama(monkeypatch):
-    # Point at an address where nothing runs: building the app must not call it.
     from fastapi.testclient import TestClient
 
     from core.config import get_settings
     from main import create_app
 
-    monkeypatch.setenv("OLLAMA_BASE_URL", "http://127.0.0.1:9")
+    monkeypatch.setenv("OLLAMA_BASE_URL", "http://127.0.0.1:9")  # nothing listens here
     get_settings.cache_clear()
     try:
         with TestClient(create_app()) as client:

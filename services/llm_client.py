@@ -112,11 +112,6 @@ class OllamaClient:
     async def chat_structured(
         self, messages: list[dict[str, str]], schema: dict[str, Any]
     ) -> str:
-        """Send a chat and force the answer into `schema`'s JSON shape.
-
-        Returns the raw JSON text so the caller can validate it and, if it is
-        invalid, retry with the validation error. Thinking mode is turned off.
-        """
         payload: dict[str, Any] = {
             "model": self.model,
             "messages": messages,
@@ -142,7 +137,7 @@ class OllamaClient:
                     response.raise_for_status()
                     data = response.json()
         except (httpx.HTTPError, ValueError) as exc:
-            # Timeouts have an empty message, so include the exception type.
+            # timeouts have an empty message, so add the type
             raise LLMClientError(
                 f"Unable to get structured chat output: {type(exc).__name__}: {exc}"
             ) from exc

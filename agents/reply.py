@@ -1,6 +1,3 @@
-"""Turn a decision into the text the user sees. Fixed templates only, so the bot
-can't invent facts or prices."""
-
 import re
 from dataclasses import dataclass
 from datetime import date
@@ -10,7 +7,7 @@ from schemas.trip import TripSpec
 
 FALLBACK = "Sorry, I didn't catch that. Could you rephrase?"
 CONFIRMED = "Great, searching for hotels now..."
-STRICT_AFTER = 3  # asks in a row before switching to a format hint
+STRICT_AFTER = 3
 
 QUESTIONS = {
     "country": "Which country would you like to visit?",
@@ -79,7 +76,6 @@ def question(name: str, times_asked: int, vague: bool) -> str:
 
 
 def greeting_line(message: str) -> str | None:
-    """Answer a hello or a thanks; say nothing for "okay" and the like."""
     words = set(re.findall(r"[a-z]+", message.lower()))
     if words & {"hi", "hello", "hey", "hiya"} or re.search(r"\bgood (morning|afternoon|evening)\b", message.lower()):
         return "Hello!"
@@ -136,7 +132,7 @@ def build_reply(
         return Reply(CONFIRMED, {})
 
     asked = decision.fields if decision.action in ("ask", "redirect") else []
-    # Counts are for asks in a row, so anything not asked this turn starts over.
+    # counts are for asks in a row, so anything not asked starts over
     counts = {name: ask_counts.get(name, 0) + 1 for name in asked}
     questions = [question(name, counts[name], name in unclear) for name in asked]
 

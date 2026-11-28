@@ -1,10 +1,3 @@
-"""Checks that a value the model reported is actually backed by the user's words.
-
-Small models like to fill fields the user never mentioned (a review score of
-4.5, one traveller, a question copied from an example). Every value has to
-pass one of these checks before it can reach the form.
-"""
-
 import re
 from datetime import date
 
@@ -52,7 +45,7 @@ STOP_WORDS = {"the", "a", "an", "is", "are", "it", "in", "on", "to", "for", "of"
 class Message:
     def __init__(self, text: str) -> None:
         self.raw = text
-        # "1,500" -> "1500" so amounts match, but keep "Rome, Italy" apart.
+        # "1,500" -> "1500", but leave "Rome, Italy" alone
         self.text = re.sub(r"(?<=\d),(?=\d{3})", "", text.lower())
         self.words = set(re.findall(r"[\w€£$]+", self.text))
         self.raw_words = re.findall(r"[\w]+", text)
@@ -68,7 +61,7 @@ class Message:
         return any(p in self.text for p in pieces)
 
     def mentions_amount(self, value: float) -> bool:
-        """Like mentions_number, but "4-star" or "10 days" is not an amount of money."""
+        # same as mentions_number, except "4-star" or "10 days" isn't money
         n = int(value) if float(value).is_integer() else value
         for match in re.finditer(rf"(?<![\w.]){re.escape(str(n))}(?![\w.])", self.text):
             if not re.match(rf"\s*-?\s*({NOT_MONEY})\b", self.text[match.end():]):
@@ -89,8 +82,7 @@ def _country_mentioned(country: str, msg: Message) -> bool:
     for size in (3, 2, 1):
         for i in range(len(words) - size + 1):
             chunk = " ".join(words[i : i + size])
-            # Short chunks are only tried as codes when typed in capitals,
-            # otherwise "in", "to" or "me" would match India, Tonga, Montenegro.
+            # codes only in capitals, or "in"/"to"/"me" match India/Tonga/Montenegro
             if chunk.lower() not in COUNTRY_ALIASES and len(chunk) <= 3 and not chunk.isupper():
                 continue
             try:
@@ -115,7 +107,7 @@ def is_grounded(field: str, value, msg: Message, region_kept: bool = False) -> b
         try:
             country = normalize_country(value)
         except ValueError:
-            return True  # not a real country; validation refuses it with a proper reason
+            return True  # let validation reject it with a proper message
         return region_kept or _country_mentioned(country, msg)
     if field == "region":
         return not is_whole_message(value, msg) and all(
@@ -161,18 +153,16 @@ NO_STARTS = {"no", "nope", "nah", "wrong"}
 
 
 def correct_message_type(model_type: str, message: str) -> str:
-    """Fix the model's label for short, common replies we can read for sure."""
     text = " ".join(re.findall(r"[\w']+", message.lower()))
     if text in YES_REPLIES:
         return "yes"
     if text in NOTHING_REPLIES:
-        return "trip_info"  # nothing to change: carry on as normal
+        return "trip_info"
     if text in NO_REPLIES:
         return "no"
     if text.split(" ")[0] in NO_STARTS and model_type in ("trip_info", "greeting", "yes"):
         return "no"
-    # Short slang and typos ("nth", "idk lol") get labelled non-English. Longer
-    # text is left alone: French or Spanish is often plain ASCII too.
+    # the model calls slang like "nth" non-English; only override that for short text
     if model_type == "non_english" and message.isascii() and len(text.split()) <= 3:
         return "off_topic"
     return model_type
@@ -194,13 +184,11 @@ UNCLEAR_HINTS = {
 
 
 def unclear_mentioned(field: str, msg: Message) -> bool:
-    """Only treat a field as vague if the user said something about it."""
     hints = UNCLEAR_HINTS.get(field)
     return hints is None or bool(msg.words & hints)
 
 
 def tidy_extraction(extraction, message: str):
-    """Python's fixes to the model's labels, applied before anything else uses them."""
     msg = Message(message)
     return extraction.model_copy(update={
         "message_type": correct_message_type(extraction.message_type, message),
@@ -216,13 +204,11 @@ def question_mentioned(question: str, msg: Message) -> bool:
 
 
 def is_whole_message(value: str, msg: Message) -> bool:
-    """The model sometimes dumps the entire message into a text field."""
     words = re.findall(r"\w+", value.lower())
     return len(words) >= 3 and words == re.findall(r"\w+", msg.text)
 
 
 def either_or(value: float, msg: Message) -> list[str] | None:
-    """'1500 or 2000' -> ['1500', '2000'] when value is one of them."""
     n = str(int(value) if float(value).is_integer() else value)
     for a, b in re.findall(r"(\d[\d.]*k?)\s*(?:or|/)\s*(\d[\d.]*k?)", msg.text):
         if n in (a, b):

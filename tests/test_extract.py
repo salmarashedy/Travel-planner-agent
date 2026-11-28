@@ -12,7 +12,7 @@ from agents.extract import (
 from core.exceptions import LLMClientError
 from schemas.trip import Extraction, TripSpec
 
-TODAY = date(2026, 11, 21)  # a Saturday
+TODAY = date(2026, 11, 21)
 
 
 class FakeLLM:
@@ -99,7 +99,7 @@ def test_example_dates_use_the_right_year():
 
 
 def test_last_example_has_nothing_to_copy():
-    # The model tends to copy from the example right before the real message.
+    # the model copies from the example right before the real message
     last = Extraction.model_validate_json(example_turns(TODAY)[-1]["content"])
     assert last.message_type == "greeting"
     assert last.side_question is None
@@ -121,16 +121,16 @@ def test_system_prompt_has_the_context():
     assert '"country": "Italy"' in system
     assert '"num_days": 7' in system
     assert "How many people are travelling?" in system
-    assert "first message" not in system  # only the last 2 messages
+    assert "first message" not in system
     assert "second message" in system and "third message" in system
-    assert '"message_type"' in system  # schema is in the prompt
+    assert '"message_type"' in system
 
 
 def test_empty_context_reads_naturally():
     system = build_messages("hi", TripSpec(), TODAY)[0]["content"]
     assert "nothing yet" in system
     assert "None" not in system
-    assert '"$" or "pounds"' in system  # $$ in the template comes out as a single $
+    assert '"$" or "pounds"' in system
 
 
 def test_prompt_template_has_only_known_placeholders():
@@ -140,7 +140,6 @@ def test_prompt_template_has_only_known_placeholders():
 
 
 def test_year_rule_uses_real_years():
-    # 21 Nov 2026: January has passed, December 20 has not.
     rule = year_rule(TODAY)
     assert "2027-01-15" in rule
     assert "2026-12-20" in rule

@@ -25,8 +25,6 @@ def run(spec, extraction=None, *, prev=None, awaiting=False, rejected=None, conf
     return decide(merged, prev if prev is not None else spec, extraction or said(), awaiting, TODAY)
 
 
-# ---------- asking ----------
-
 def test_empty_form_asks_for_country_and_start_date():
     d = run(TripSpec())
     assert d.action == "ask"
@@ -52,7 +50,7 @@ def test_vague_value_comes_before_other_missing_fields():
 
 
 def test_unclear_optional_field_is_not_asked():
-    # Real chat: the model marked region unclear and the bot asked for a city.
+    # from a real chat: the bot asked for a city it didn't need
     d = run(TripSpec(country="United Kingdom", num_days=5), said(unclear=["start_date", "region"]))
     assert d.fields == ["start_date", "budget_amount"]
 
@@ -61,8 +59,6 @@ def test_unclear_flag_on_a_known_field_is_ignored():
     d = run(FULL, said(unclear=["budget_currency"]))
     assert d.action == "confirm"
 
-
-# ---------- summary and confirmation ----------
 
 def test_full_form_shows_the_summary():
     d = run(FULL, prev=TripSpec())
@@ -90,13 +86,11 @@ def test_yes_but_change_shows_the_summary_again():
 
 
 def test_yes_with_a_real_change_does_not_confirm():
-    # Even if the model labels it "yes", a changed form needs a new summary.
     new = FULL.model_copy(update={"budget_amount": 2000})
     assert run(new, said("yes"), prev=FULL, awaiting=True).action == "confirm"
 
 
 def test_model_repeating_a_known_value_still_confirms():
-    # The model said country=Italy again on "yes", but the form is the same.
     same = FULL.model_copy(update={"country": "Italy"})
     assert run(same, said("yes"), prev=FULL, awaiting=True).action == "confirmed"
 
@@ -123,8 +117,6 @@ def test_no_without_a_summary_just_continues():
     assert run(TripSpec(country="Italy"), said("no")).action == "ask"
 
 
-# ---------- after confirming ----------
-
 def confirmed_run(spec, extraction, prev=None):
     merged = MergeResult(spec=spec)
     return decide(merged, prev if prev is not None else spec, extraction, False, TODAY,
@@ -132,7 +124,7 @@ def confirmed_run(spec, extraction, prev=None):
 
 
 def test_yes_after_confirming_stays_confirmed():
-    # Real chat: a second "yes" showed the summary again.
+    # from a real chat: a second yes showed the summary again
     assert confirmed_run(FULL, said("yes")).action == "confirmed"
 
 
@@ -150,8 +142,6 @@ def test_no_after_confirming_asks_what_to_change():
 def test_off_topic_after_confirming_is_redirected():
     assert confirmed_run(FULL, said("off_topic")).action == "redirect"
 
-
-# ---------- off topic ----------
 
 def test_off_topic_keeps_its_place():
     d = run(FULL.model_copy(update={"party_size": None}), said("off_topic"))
@@ -173,16 +163,12 @@ def test_non_english_is_redirected():
     assert run(TripSpec(), said("non_english")).action == "redirect"
 
 
-# ---------- conflicts ----------
-
 def test_conflict_is_clarified_before_asking_anything_else():
     d = run(TripSpec(), conflicts=["For budget amount you said 1500 and 2000."])
     assert d.action == "clarify"
     assert d.conflicts == ["For budget amount you said 1500 and 2000."]
     assert d.awaiting_confirmation is False
 
-
-# ---------- old sessions ----------
 
 def test_start_date_that_has_passed_is_cleared_and_asked_again():
     old = FULL.model_copy(update={"start_date": date(2026, 11, 1)})
@@ -191,10 +177,8 @@ def test_start_date_that_has_passed_is_cleared_and_asked_again():
     assert d.fields == ["start_date"]
     assert d.spec.start_date is None
     assert d.rejected["start_date"] == "That start date has now passed."
-    assert old.start_date == date(2026, 11, 1)  # the input is not changed
+    assert old.start_date == date(2026, 11, 1)
 
-
-# ---------- the 4-turn example from the Feature 1 guide ----------
 
 def test_four_turn_conversation():
     spec, awaiting = TripSpec(), False

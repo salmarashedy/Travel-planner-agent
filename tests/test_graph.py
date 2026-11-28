@@ -41,7 +41,7 @@ async def test_the_four_turn_example_from_the_guide(chat):
     assert s["confirmed"] is True
     assert s["spec"]["budget_amount"] == 2000
     assert s["spec"]["country"] == "Italy"
-    assert len(s["messages"]) == 8  # 4 user + 4 assistant
+    assert len(s["messages"]) == 8
 
 
 async def test_sessions_do_not_mix(chat):
@@ -57,7 +57,7 @@ async def test_model_down_gives_a_friendly_reply_and_the_chat_goes_on(chat):
     assert s["reply"] == FALLBACK
     assert s["messages"][-1] == {"role": "assistant", "content": FALLBACK}
     assert s["confirmed"] is False
-    assert s["spec"]["country"] is None  # an empty form is still there for the API
+    assert s["spec"]["country"] is None
 
     chat.llm.answers["7 days in Italy, 1500 euros, 4 stars"] = ANSWERS["7 days in Italy, 1500 euros, 4 stars"]
     s = await chat("7 days in Italy, 1500 euros, 4 stars")
@@ -105,7 +105,7 @@ async def test_old_chat_with_a_passed_start_date():
     await run_turn(graph, "session_old", "7 days in Italy, 1500 euros, 4 stars")
     await run_turn(graph, "session_old", "June 10, 2 people")
 
-    clock["today"] = date(2027, 6, 20)  # the user comes back after the trip date
+    clock["today"] = date(2027, 6, 20)
     s = await run_turn(graph, "session_old", "yes")
     assert s["confirmed"] is False
     assert s["spec"]["start_date"] is None
@@ -113,7 +113,7 @@ async def test_old_chat_with_a_passed_start_date():
 
 
 async def test_your_chat_after_the_summary(chat):
-    """The end of the real chat from testing, with the model's real labels."""
+    # the end of a real chat, with the labels qwen3:4b gave
     chat.llm.answers.update({
         "no i said me and my husband and 3 childern": trip(party_size=4),
         "nth": {"message_type": "non_english"},
@@ -121,22 +121,22 @@ async def test_your_chat_after_the_summary(chat):
         "June 10, my husband and 3 sons": trip(start_date="2027-06-10", party_size=4),
     })
     await chat("7 days in Italy, 1500 euros, 4 stars")
-    await chat("June 10, my husband and 3 sons")  # the model counted 4, like in the real chat
+    await chat("June 10, my husband and 3 sons")
 
     s = await chat("no i said me and my husband and 3 childern")
-    assert s["reply"] == "What would you like to change?"  # the "no" is not ignored
+    assert s["reply"] == "What would you like to change?"
 
     s = await chat("nth")
-    assert s["reply"].startswith("Here is what I have:")  # not "only English"
+    assert s["reply"].startswith("Here is what I have:")
 
     s = await chat("okay")
-    assert s["confirmed"] is True  # "okay" to the summary is a yes, with no "Hello!"
+    assert s["confirmed"] is True
 
     s = await chat("yes")
-    assert s["reply"] == CONFIRMED  # stays confirmed, no summary again
+    assert s["reply"] == CONFIRMED
     assert s["confirmed"] is True
 
 
 async def test_state_is_plain_json(chat):
     s = await chat("7 days in Italy, 1500 euros, 4 stars")
-    json.dumps(s)  # any checkpointer can save it
+    json.dumps(s)

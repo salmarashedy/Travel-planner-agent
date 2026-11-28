@@ -1,10 +1,6 @@
-"""Country normalisation: any real country is accepted, anything else is refused."""
-
 import pycountry
 
-# Everyday nicknames that pycountry does not recognise, mapped to the country's
-# official name in pycountry. Ambiguous names such as "Korea" are left out on
-# purpose so the bot asks which one.
+# names pycountry doesn't know. "Korea" is left out on purpose so the bot asks.
 COUNTRY_ALIASES: dict[str, str] = {
     "uk": "United Kingdom",
     "u.k.": "United Kingdom",
@@ -41,7 +37,6 @@ COUNTRY_ALIASES: dict[str, str] = {
     "micronesia": "Micronesia, Federated States of",
 }
 
-# Friendlier names to show the user where pycountry's official name is awkward.
 DISPLAY_NAMES: dict[str, str] = {
     "Russian Federation": "Russia",
     "Türkiye": "Turkey",
@@ -53,7 +48,6 @@ DISPLAY_NAMES: dict[str, str] = {
 
 
 def normalize_country(value: str) -> str:
-    """Return the standard English country name, or raise ValueError."""
     text = value.strip()
     if not text:
         raise ValueError("Country cannot be empty.")

@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     ollama_num_ctx: int = Field(default=8192, gt=0, validation_alias="OLLAMA_NUM_CTX")
     database_url: str | None = Field(default=None, validation_alias="DATABASE_URL")
     mlflow_tracking_uri: str = Field(
-        # MLflow 3 no longer accepts a plain folder like ./mlruns; a local SQLite file needs no setup.
+        # MLflow 3 refuses a plain ./mlruns folder
         default="sqlite:///mlflow.db", validation_alias="MLFLOW_TRACKING_URI"
     )
     log_level: str = Field(default="INFO", validation_alias="LOG_LEVEL")

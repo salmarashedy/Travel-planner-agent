@@ -1,11 +1,6 @@
-"""Score extraction on the golden cases for one or more models.
-
-    python -m scripts.compare_models qwen3:4b gemma3:4b
-    python -m scripts.compare_models qwen3:4b --show-errors
-    python -m scripts.compare_models qwen3:4b --merge          # after the step 5 checks
-    python -m scripts.compare_models qwen3:4b --cases heldout  # the final exam set
-    python -m scripts.compare_models qwen3:4b --merge --log    # save the run to MLflow
-"""
+# Score models on the golden cases:
+#   python -m scripts.compare_models qwen3:4b gemma3:4b --show-errors
+#   python -m scripts.compare_models qwen3:4b --merge --cases heldout --log
 
 import argparse
 import asyncio
@@ -143,7 +138,7 @@ async def run_model(model: str, cases: list[dict], today: date, with_merge: bool
     llm = OllamaClient(settings)
     score = Score(cases=len(cases))
 
-    # Load the model first so the first case isn't timed with the load.
+    # warm up so loading the model isn't timed
     await extract(llm, "hi", TripSpec(), today)
 
     for case in cases:
@@ -160,7 +155,6 @@ async def run_model(model: str, cases: list[dict], today: date, with_merge: bool
 
 
 def after_merge(result: Extraction, message: str, today: date) -> Extraction:
-    """What actually reaches the form, shaped like an Extraction so it scores the same way."""
     merged = merge(TripSpec(), result, message, today)
     kept = merged.spec.model_dump(mode="json", exclude_none=True, exclude_defaults=True)
     interests = kept.pop("interests", [])
@@ -182,7 +176,7 @@ def after_merge(result: Extraction, message: str, today: date) -> Extraction:
 
 
 def log_run(model: str, score: Score, cases_name: str, with_merge: bool) -> None:
-    import mlflow  # slow to import, so only when asked
+    import mlflow
 
     mlflow.set_tracking_uri(get_settings().mlflow_tracking_uri)
     mlflow.set_experiment("feature1-extraction")

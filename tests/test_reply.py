@@ -33,8 +33,6 @@ def reply(action, spec=None, *, before=None, message_type="trip_info", counts=No
                        unclear=unclear, side_answer=side_answer, user_message=user_message)
 
 
-# ---------- questions ----------
-
 def test_every_field_has_a_question():
     from typing import get_args
     for name in get_args(FieldName):
@@ -72,8 +70,6 @@ def test_counts_reset_for_fields_not_asked():
     assert r.ask_counts == {"party_size": 3}
 
 
-# ---------- summary ----------
-
 def test_summary_of_a_full_form():
     assert summary(FULL) == (
         "Here is what I have: Italy | 7 days from 10 June 2027 | 1,500 EUR in total | "
@@ -106,8 +102,6 @@ def test_confirm_shows_the_summary():
     assert reply("confirm", FULL).text == summary(FULL)
 
 
-# ---------- change note ----------
-
 def test_change_note_formats_numbers():
     after = FULL.model_copy(update={"budget_amount": 2000})
     assert change_note(FULL, after) == "Updated: budget amount 1,500 -> 2,000."
@@ -128,8 +122,6 @@ def test_change_then_summary_like_the_guide_example():
     assert r.text.startswith("Updated: budget amount 1,500 -> 2,000. Here is what I have:")
     assert "2,000 EUR in total" in r.text
 
-
-# ---------- other actions ----------
 
 def test_confirmed():
     r = reply("confirmed", FULL)
@@ -160,8 +152,6 @@ def test_non_english_redirect():
     assert r.text.startswith("For now I can only chat in English.")
 
 
-# ---------- putting the parts together ----------
-
 def test_parts_come_in_order():
     before = TripSpec(country="Italy", budget_amount=1500)
     after = before.model_copy(update={"budget_amount": 2000})
@@ -187,7 +177,6 @@ def test_greeting_line(message, line):
 
 
 def test_okay_does_not_get_a_hello():
-    # Real chat: "okay" got "Hello! Here is what I have..."
     r = reply("confirm", FULL, message_type="greeting", user_message="okay")
     assert not r.text.startswith("Hello")
 

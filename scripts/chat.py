@@ -1,15 +1,13 @@
-"""Chat with the bot in the terminal, using the real model.
-
-    python -m scripts.chat                      # type messages, empty line to stop
-    python -m scripts.chat "7 days in Italy" "two people"
-"""
+# Chat with the bot in the terminal (empty line to stop):
+#   python -m scripts.chat
+#   python -m scripts.chat "7 days in Italy" "two people"
 
 import asyncio
 import sys
 import uuid
 import warnings
 
-# A deprecation notice from inside LangGraph's own code; not something we can fix here.
+# noisy deprecation warning from inside langgraph
 warnings.filterwarnings("ignore", message=".*allowed_objects.*")
 
 from agents.graph import build_graph, run_turn

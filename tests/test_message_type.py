@@ -4,7 +4,6 @@ from agents.grounding import Message, correct_message_type, unclear_mentioned
 
 
 def test_unclear_needs_the_topic_in_the_message():
-    # Real chat: budget was marked unclear in a message about dates only.
     msg = Message("i want to travel for 5 days in decamber")
     assert unclear_mentioned("start_date", msg)
     assert not unclear_mentioned("budget_amount", msg)
@@ -27,12 +26,10 @@ def test_short_no_replies(message):
 
 @pytest.mark.parametrize("message", ["nth", "nothing", "nvm", "never mind"])
 def test_nothing_to_change_carries_on(message):
-    # Real chat: "nth" was labelled non-English.
     assert correct_message_type("non_english", message) == "trip_info"
 
 
 def test_no_at_the_start_is_a_no():
-    # Real chat: "no i said me and my husband and 3 childern" came back as trip_info.
     assert correct_message_type("trip_info", "no i said me and my husband and 3 childern") == "no"
 
 
@@ -49,7 +46,7 @@ def test_real_non_english_stays():
 
 
 def test_non_english_without_accents_stays():
-    # Found by the golden set: plain-letter French was being called off-topic.
+    # caught by the held-out set
     assert correct_message_type("non_english", "Bonjour, je veux aller en Espagne") == "non_english"
 
 
